@@ -878,6 +878,11 @@ Iterator removeAdjacentIf(const Iterator first, const Iterator last,
   return insertionPoint;
 }
 
+/// Overload for producing optionals of type T where c++ type inference does not
+/// let you consider optional a subtype of T.
+template <typename T> Optional<T> make_optional(const T &t) {
+  return Optional<T>(t);
+}
 
 } // end namespace swift
 
