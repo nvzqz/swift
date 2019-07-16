@@ -18,6 +18,7 @@
 ///
 /// 1. We remove calls to Builtin.poundAssert() and Builtin.staticReport(),
 ///    which are not needed post SIL.
+/// 2. We transform polymorphic builtins in transparent functions into traps.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -42,25 +43,43 @@ static bool cleanFunction(SILFunction &fn) {
       SILInstruction *inst = &*i;
       ++i;
 
-      // Remove calls to Builtin.poundAssert() and Builtin.staticReport().
       auto *bi = dyn_cast<BuiltinInst>(inst);
       if (!bi) {
         continue;
       }
 
-      switch (bi->getBuiltinInfo().ID) {
-      case BuiltinValueKind::IsConcrete: {
-        SILBuilderWithScope builder(bi);
-        bool isConcrete = !bi->getOperand(0)->getType().hasArchetype();
-        auto *inst = builder.createIntegerLiteral(
-            bi->getLoc(),
-            SILType::getBuiltinIntegerType(1, builder.getASTContext()),
-            isConcrete);
-        bi->replaceAllUsesWith(inst);
+      auto kind = bi->getBuiltinKind();
+      if (!kind)
+        continue;
+
+      // Transform polymorphic builtins into int_trap.
+      if (isPolymorphicBuiltin(kind.getValue())) {
+        assert(bi->getFunction()->isTransparent() == IsTransparent &&
+               "Should only see these in transparent functions. If these were "
+               "mandatory inlined into a caller, we should either have emitted "
+               "a call to the static overload or emitted a diagnostic");
+        // Replace all uses with undef since we are going to trap. Any such uses
+        // are now unreachable along a path.
+        bi->replaceAllUsesWithUndef();
+        SILBuilderWithScope(bi).createBuiltinTrap(bi->getLoc());
         bi->eraseFromParent();
         madeChange = true;
         continue;
       }
+
+      switch (bi->getBuiltinInfo().ID) {
+        case BuiltinValueKind::IsConcrete: {
+          SILBuilderWithScope builder(bi);
+          bool isConcrete = !bi->getOperand(0)->getType().hasArchetype();
+          auto *inst = builder.createIntegerLiteral(
+              bi->getLoc(),
+              SILType::getBuiltinIntegerType(1, builder.getASTContext()),
+              isConcrete);
+          bi->replaceAllUsesWith(inst);
+          bi->eraseFromParent();
+          madeChange = true;
+          continue;
+        }
         case BuiltinValueKind::CondFailMessage: {
           SILBuilderWithScope Builder(bi);
           Builder.createCondFail(bi->getLoc(), bi->getOperand(0),
