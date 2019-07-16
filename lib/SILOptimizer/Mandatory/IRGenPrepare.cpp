@@ -67,6 +67,18 @@ static bool cleanFunction(SILFunction &fn) {
         continue;
       }
 
+      if (*kind == BuiltinValueKind::IsCallerTransparent) {
+        bool isTransparent = fn.isTransparent() == IsTransparent;
+        SILBuilderWithScope builder(bi);
+        auto *inst = builder.createIntegerLiteral(bi->getLoc(), 
+                                    SILType::getBuiltinIntegerType(1, builder.getASTContext()),
+                                    isTransparent);
+        bi->replaceAllUsesWith(inst);
+        bi->eraseFromParent();
+        madeChange = true;
+        continue;
+      }
+
       // Remove calls to Builtin.poundAssert() and Builtin.staticReport().
       if (*kind != BuiltinValueKind::PoundAssert &&
           *kind != BuiltinValueKind::StaticReport) {

@@ -480,6 +480,12 @@ BUILTIN_MISC_OPERATION(Strideof, "strideof", "n", Special)
 /// IsPOD has type T.Type -> Bool
 BUILTIN_MISC_OPERATION(IsPOD, "ispod", "n", Special)
 
+/// IsCallerTransparent has type () -> Bool
+///
+/// Expaneded in IRGenPrepare in order to conditionally compile out code from
+/// transparent functions called within a witness table.
+BUILTIN_MISC_OPERATION(IsCallerTransparent, "isCallerTransparent", "n", Special)
+
 /// IsBitwiseTakable has type T.Type -> Bool
 BUILTIN_MISC_OPERATION(IsBitwiseTakable, "isbitwisetakable", "n", Special)
 

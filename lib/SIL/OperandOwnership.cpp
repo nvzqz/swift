@@ -1087,6 +1087,12 @@ OperandOwnershipKindBuiltinClassifier::visitGlobalStringTablePointer(
        {ValueOwnershipKind::Owned, UseLifetimeConstraint::MustBeLive}});
 }
 
+OperandOwnershipKindMap
+OperandOwnershipKindBuiltinClassifier::visitIsCallerTransparent(
+    BuiltinInst *bi, StringRef attr) {
+  llvm_unreachable("Builtin does not accept arguments");
+}
+
 // Builtins that should be lowered to SIL instructions so we should never see
 // them.
 #define BUILTIN_SIL_OPERATION(ID, NAME, CATEGORY)                              \

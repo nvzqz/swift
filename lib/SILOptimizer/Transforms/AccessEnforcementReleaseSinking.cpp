@@ -108,6 +108,7 @@ static bool isBarrier(SILInstruction *inst) {
     case BuiltinValueKind::Sizeof:
     case BuiltinValueKind::Strideof:
     case BuiltinValueKind::IsPOD:
+    case BuiltinValueKind::IsCallerTransparent:
     case BuiltinValueKind::IsBitwiseTakable:
     case BuiltinValueKind::IsSameMetatype:
     case BuiltinValueKind::Alignof:

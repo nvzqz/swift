@@ -15,3 +15,25 @@ bb0(%0 : $*T, %1 : $*T, %2 : $*T):
   %9999 = tuple()
   return %9999 : $()
 }
+
+// CHECK-LABEL: sil [transparent] [canonical] @isCallerTransparent : $@convention(thin) () -> Builtin.Int1 {
+// CHECK: bb0:
+// CHECK-NEXT: [[RESULT:%.*]] = integer_literal $Builtin.Int1, -1
+// CHECK-NEXT: return [[RESULT]]
+// CHECK-NEXT: } // end sil function 'isCallerTransparent'
+sil [transparent] [canonical] @isCallerTransparent : $@convention(thin) () -> Builtin.Int1 {
+bb0:
+  %1 = builtin "isCallerTransparent"() : $Builtin.Int1
+  return %1 : $Builtin.Int1
+}
+
+// CHECK-LABEL: sil [canonical] @isCallerNotTransparent : $@convention(thin) () -> Builtin.Int1 {
+// CHECK: bb0:
+// CHECK-NEXT: [[RESULT:%.*]] = integer_literal $Builtin.Int1, 0
+// CHECK-NEXT: return [[RESULT]]
+// CHECK-NEXT: } // end sil function 'isCallerNotTransparent'
+sil [canonical] @isCallerNotTransparent : $@convention(thin) () -> Builtin.Int1 {
+bb0:
+  %1 = builtin "isCallerTransparent"() : $Builtin.Int1
+  return %1 : $Builtin.Int1
+}
