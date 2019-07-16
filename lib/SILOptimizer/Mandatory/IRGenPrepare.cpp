@@ -18,6 +18,7 @@
 ///
 /// 1. We remove calls to Builtin.poundAssert() and Builtin.staticReport(),
 ///    which are not needed post SIL.
+/// 2. We transform polymorphic builtins in transparent functions into traps.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -42,15 +43,33 @@ static bool cleanFunction(SILFunction &fn) {
       SILInstruction *inst = &*i;
       ++i;
 
-      // Remove calls to Builtin.poundAssert() and Builtin.staticReport().
       auto *bi = dyn_cast<BuiltinInst>(inst);
       if (!bi) {
         continue;
       }
 
-      const BuiltinInfo &bInfo = bi->getBuiltinInfo();
-      if (bInfo.ID != BuiltinValueKind::PoundAssert &&
-          bInfo.ID != BuiltinValueKind::StaticReport) {
+      auto kind = bi->getBuiltinKind();
+      if (!kind)
+        continue;
+
+      // Transform polymorphic builtins into int_trap.
+      if (isPolymorphicBuiltin(kind.getValue())) {
+        assert(bi->getFunction()->isTransparent() == IsTransparent &&
+               "Should only see these in transparent functions. If these were "
+               "mandatory inlined into a caller, we should either have emitted "
+               "a call to the static overload or emitted a diagnostic");
+        // Replace all uses with undef since we are going to trap. Any such uses
+        // are now unreachable along a path.
+        bi->replaceAllUsesWithUndef();
+        SILBuilderWithScope(bi).createBuiltinTrap(bi->getLoc());
+        bi->eraseFromParent();
+        madeChange = true;
+        continue;
+      }
+
+      // Remove calls to Builtin.poundAssert() and Builtin.staticReport().
+      if (*kind != BuiltinValueKind::PoundAssert &&
+          *kind != BuiltinValueKind::StaticReport) {
         continue;
       }
 
