@@ -1166,6 +1166,18 @@ static SILValue foldFPTrunc(BuiltinInst *BI, const BuiltinInfo &Builtin,
   return B.createFloatLiteral(Loc, BI->getType(), truncVal);
 }
 
+static SILValue constantFoldIsConcrete(BuiltinInst *BI) {
+  if (BI->getOperand(0)->getType().hasArchetype()) {
+    return SILValue();
+  }
+  SILBuilderWithScope builder(BI);
+  auto *inst = builder.createIntegerLiteral(
+      BI->getLoc(), SILType::getBuiltinIntegerType(1, builder.getASTContext()),
+      true);
+  BI->replaceAllUsesWith(inst);
+  return inst;
+}
+
 static SILValue constantFoldBuiltin(BuiltinInst *BI,
                                     Optional<bool> &ResultsInError) {
   const IntrinsicInfo &Intrinsic = BI->getIntrinsicInfo();
@@ -1181,6 +1193,9 @@ static SILValue constantFoldBuiltin(BuiltinInst *BI,
 
   switch (Builtin.ID) {
   default: break;
+
+  case BuiltinValueKind::IsConcrete:
+    return constantFoldIsConcrete(BI);
 
 // Check and fold binary arithmetic with overflow.
 #define BUILTIN(id, name, Attrs)
@@ -1529,7 +1544,8 @@ void ConstantFolder::initializeWorklist(SILFunction &F) {
         continue;
       }
 
-      if (isApplyOfBuiltin(I, BuiltinValueKind::GlobalStringTablePointer)) {
+      if (isApplyOfBuiltin(I, BuiltinValueKind::GlobalStringTablePointer) ||
+          isApplyOfBuiltin(I, BuiltinValueKind::IsConcrete)) {
         WorkList.insert(&I);
         continue;
       }
@@ -1685,6 +1701,17 @@ ConstantFolder::processWorkList() {
     if (isApplyOfBuiltin(*I, BuiltinValueKind::GlobalStringTablePointer)) {
       if (constantFoldGlobalStringTablePointerBuiltin(cast<BuiltinInst>(I),
                                                       EnableDiagnostics)) {
+        // Here, the bulitin instruction got folded, so clean it up.
+        recursivelyDeleteTriviallyDeadInstructions(
+            I, /*force*/ true,
+            [&](SILInstruction *DeadI) { WorkList.remove(DeadI); });
+        InvalidateInstructions = true;
+      }
+      continue;
+    }
+
+    if (isApplyOfBuiltin(*I, BuiltinValueKind::IsConcrete)) {
+      if (SILValue v = constantFoldIsConcrete(cast<BuiltinInst>(I))) {
         // Here, the bulitin instruction got folded, so clean it up.
         recursivelyDeleteTriviallyDeadInstructions(
             I, /*force*/ true,
