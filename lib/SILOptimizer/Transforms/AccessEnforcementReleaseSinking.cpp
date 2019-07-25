@@ -95,8 +95,7 @@ static bool isBarrier(SILInstruction *inst) {
   BUILTIN_NO_BARRIER(Id)
 #define BUILTIN_UNARY_OPERATION(Id, Name, Attrs, Overload)                     \
   BUILTIN_NO_BARRIER(Id)
-#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs, Overload)                    \
-  BUILTIN_NO_BARRIER(Id)
+#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs) BUILTIN_NO_BARRIER(Id)
 #define BUILTIN_SIL_OPERATION(Id, Name, Overload)                              \
   case BuiltinValueKind::Id:                                                   \
     llvm_unreachable("SIL operation must be lowered to instructions.");

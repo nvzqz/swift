@@ -1219,16 +1219,29 @@ static SILValue constantFoldBuiltin(BuiltinInst *BI,
     return constantFoldBinaryWithOverflow(BI, Builtin.ID, ResultsInError);
 
 #define BUILTIN(id, name, Attrs)
-#define BUILTIN_BINARY_OPERATION(id, name, attrs) case BuiltinValueKind::id:
+#define BUILTIN_BINARY_OPERATION_POLYMORPHIC(id, name, attrs) \
+  case BuiltinValueKind::id:
 #include "swift/AST/Builtins.def"
-      return constantFoldBinary(BI, Builtin.ID, ResultsInError);
+    // Constant folding is not implemented for polymorphic binary operations
+    return nullptr;
+#define BUILTIN(id, name, Attrs)
+#define BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC(id, name, attrs, overload) \
+  case BuiltinValueKind::id:
+#include "swift/AST/Builtins.def"
+    return constantFoldBinary(BI, Builtin.ID, ResultsInError);
 
 // Fold comparison predicates.
 #define BUILTIN(id, name, Attrs)
-#define BUILTIN_BINARY_PREDICATE(id, name, attrs, overload) \
-case BuiltinValueKind::id:
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(id, name, attrs) \
+  case BuiltinValueKind::id:
 #include "swift/AST/Builtins.def"
-      return constantFoldCompare(BI, Builtin.ID);
+    // Constant folding is not implemented for polymorphic binary predicates
+    return nullptr;
+#define BUILTIN(id, name, Attrs)
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(id, name, attrs, overload) \
+  case BuiltinValueKind::id:
+#include "swift/AST/Builtins.def"
+    return constantFoldCompare(BI, Builtin.ID);
 
   case BuiltinValueKind::Trunc:
   case BuiltinValueKind::ZExt:

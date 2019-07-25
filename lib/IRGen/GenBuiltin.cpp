@@ -347,9 +347,15 @@ if (Builtin.ID == BuiltinValueKind::id) { \
   // FIXME: We could generate the code to dynamically report the overflow if the
   // third argument is true. Now, we just ignore it.
 
-#define BUILTIN_BINARY_PREDICATE(id, name, attrs, overload) \
-  if (Builtin.ID == BuiltinValueKind::id) \
-    return emitCompareBuiltin(IGF, out, args, llvm::CmpInst::id);
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(id, name, attrs, overload)  \
+  if (Builtin.ID == BuiltinValueKind::id) {                                    \
+    return emitCompareBuiltin(IGF, out, args, llvm::CmpInst::id);              \
+  }
+
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(id, name, attrs)                  \
+  assert(Builtin.ID != BuiltinValueKind::id &&                                 \
+         "This builtin should never be seen by IRGen. It should have been "    \
+         "lowered by IRGenPrepare");
   
 #define BUILTIN_TYPE_TRAIT_OPERATION(id, name) \
   if (Builtin.ID == BuiltinValueKind::id) \

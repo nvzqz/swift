@@ -727,7 +727,7 @@ using BuiltinApplyTy = typename Apply_match<BuiltinValueKind, Tys...>::Ty;
 #define BUILTIN_BINARY_OPERATION(Id, Name, Attrs)                              \
   BUILTIN_BINARY_OP_MATCH_WITH_ARG_MATCHER(Id, Id)
 
-#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs, Overload) \
+#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs) \
   BUILTIN_BINARY_OP_MATCH_WITH_ARG_MATCHER(Id, Id)
 
 #define BUILTIN_MISC_OPERATION(Id, Name, Attrs, Overload) \
