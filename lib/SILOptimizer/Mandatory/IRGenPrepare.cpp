@@ -42,6 +42,8 @@ static bool cleanFunction(SILFunction &fn) {
       SILInstruction *inst = &*i;
       ++i;
 
+      if (*kind == BuiltinValueKind::)
+
       // Remove calls to Builtin.poundAssert() and Builtin.staticReport().
       auto *bi = dyn_cast<BuiltinInst>(inst);
       if (!bi) {
