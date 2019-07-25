@@ -49,6 +49,18 @@ static bool cleanFunction(SILFunction &fn) {
       }
 
       switch (bi->getBuiltinInfo().ID) {
+      case BuiltinValueKind::IsConcrete: {
+        SILBuilderWithScope builder(bi);
+        bool isConcrete = !bi->getOperand(0)->getType().hasArchetype();
+        auto *inst = builder.createIntegerLiteral(
+            bi->getLoc(),
+            SILType::getBuiltinIntegerType(1, builder.getASTContext()),
+            isConcrete);
+        bi->replaceAllUsesWith(inst);
+        bi->eraseFromParent();
+        madeChange = true;
+        continue;
+      }
         case BuiltinValueKind::CondFailMessage: {
           SILBuilderWithScope Builder(bi);
           Builder.createCondFail(bi->getLoc(), bi->getOperand(0),
