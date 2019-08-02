@@ -693,6 +693,7 @@ func _isPOD<T>(_ type: T.Type) -> Bool {
 
 /// Returns `true` if `type` is known to refer to a concrete type during IRGen.
 @_transparent
+@_alwaysEmitIntoClient
 public // @testable
 func _isConcrete<T>(_ type: T.Type) -> Bool {
   return Bool(Builtin.isConcrete(type))
