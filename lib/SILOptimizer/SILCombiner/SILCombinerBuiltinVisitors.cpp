@@ -102,6 +102,17 @@ SILInstruction *SILCombiner::optimizeBuiltinCanBeObjCClass(BuiltinInst *BI) {
   llvm_unreachable("Unhandled TypeTraitResult in switch.");
 }
 
+SILInstruction *SILCombiner::optimizeBuiltinIsConcrete(BuiltinInst *BI) {
+  auto isConcrete = !BI->getOperand(0)->getType().hasArchetype();
+  SILBuilderWithScope builder(BI);
+  auto *inst = builder.createIntegerLiteral(
+    BI->getLoc(), SILType::getBuiltinIntegerType(1, builder.getASTContext()),
+    isConcrete);
+  BI->replaceAllUsesWith(inst);
+  BI->eraseFromParent();
+  return inst;
+}
+
 static unsigned getTypeWidth(SILType Ty) {
   if (auto BuiltinIntTy = Ty.getAs<BuiltinIntegerType>()) {
     if (BuiltinIntTy->isFixedWidth()) {
@@ -527,6 +538,8 @@ SILInstruction *SILCombiner::optimizeStringObject(BuiltinInst *BI) {
 SILInstruction *SILCombiner::visitBuiltinInst(BuiltinInst *I) {
   if (I->getBuiltinInfo().ID == BuiltinValueKind::CanBeObjCClass)
     return optimizeBuiltinCanBeObjCClass(I);
+  if (I->getBuiltinInfo().ID == BuiltinValueKind::IsConcrete)
+    return optimizeBuiltinIsConcrete(I);
   if (I->getBuiltinInfo().ID == BuiltinValueKind::TakeArrayFrontToBack ||
       I->getBuiltinInfo().ID == BuiltinValueKind::TakeArrayBackToFront ||
       I->getBuiltinInfo().ID == BuiltinValueKind::TakeArrayNoAlias ||
