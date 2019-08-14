@@ -180,6 +180,7 @@ void irgen::emitBuiltinCall(IRGenFunction &IGF, const BuiltinInfo &Builtin,
   }
 
   if (Builtin.ID == BuiltinValueKind::IsConcrete) {
+    (void)args.claimAll();
     auto isConcrete = !substitutions.getReplacementTypes()[0]->hasArchetype();
     out.add(llvm::ConstantInt::get(IGF.IGM.Int1Ty, isConcrete));
     return;
