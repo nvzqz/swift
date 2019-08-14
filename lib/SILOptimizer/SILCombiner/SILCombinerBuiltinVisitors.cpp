@@ -103,8 +103,10 @@ SILInstruction *SILCombiner::optimizeBuiltinCanBeObjCClass(BuiltinInst *BI) {
 }
 
 SILInstruction *SILCombiner::optimizeBuiltinIsConcrete(BuiltinInst *BI) {
-  auto isConcrete = !BI->getOperand(0)->getType().hasArchetype();
-  return Builder.createIntegerLiteral(BI->getLoc(), BI->getType(), isConcrete);
+  if (BI->getOperand(0)->getType().hasArchetype())
+    return nullptr;
+
+  return Builder.createIntegerLiteral(BI->getLoc(), BI->getType(), 1);
 }
 
 static unsigned getTypeWidth(SILType Ty) {
