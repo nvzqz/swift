@@ -24,19 +24,37 @@ ordinalPositions = ['first', 'second', 'third', 'fourth']
 
 %for n in vectorscalarCounts:
 % storageN = 4 if n == 3 else n
+
+extension SIMD${n}: _SIMDVectorStorageBase, _SIMDVectorStorage where Scalar.SIMD${storageN}Storage: _SIMDVectorStorage {
+  public typealias _Vector = Scalar.SIMD${storageN}Storage._Vector
+
+  public var _vector: _Vector {
+    @_transparent
+    get { return _storage._vector }
+  }
+
+  @_transparent
+  public init(_vector: _Vector) {
+    self.init(_storage: .init(_vector: _vector))
+  }
+
+  @_transparent
+  public static func _add(_ lhs: Self, _ rhs: Self) -> Self {
+    return Self(_storage: ._add(lhs._storage, rhs._storage))
+  }
+}
+
 /// A vector of ${spelledNumbers[n]} scalar values.
 @frozen
 public struct SIMD${n}<Scalar>: SIMD where Scalar: SIMDScalar {
 
   public typealias MaskStorage = SIMD${n}<Scalar.SIMDMaskScalar>
 
-  public typealias _InnerStorage = Scalar.SIMD${storageN}Storage
+  public var _storage: Scalar.SIMD${storageN}Storage
 
-  public var _storage: _InnerStorage
-
-  public var _innerStorage: _InnerStorage {
-    @_transparent get { return _storage }
-    @_transparent set { _storage = newValue }
+  @_transparent
+  public init(_storage: Scalar.SIMD${storageN}Storage) {
+    self._storage = _storage
   }
 
   /// The number of scalars in the vector.
@@ -49,11 +67,6 @@ public struct SIMD${n}<Scalar>: SIMD where Scalar: SIMDScalar {
   @_transparent
   public init() {
     _storage = Scalar.SIMD${storageN}Storage()
-  }
-
-  @_transparent
-  public init(_innerStorage: _InnerStorage) {
-    _storage = _innerStorage
   }
 
   /// Accesses the scalar at the specified position.

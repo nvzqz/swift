@@ -75,13 +75,9 @@ public protocol SIMDStorage {
   /// The type of scalars in the vector space.
   associatedtype Scalar: Codable, Hashable
   
-  associatedtype _InnerStorage: SIMDStorage = _SIMDGenericNever<Self.Scalar> where _InnerStorage.Scalar == Self.Scalar
-  
   // Indicates whether `InnerStorage` is represented by a vector that can be
   // passed to LLVM via a polymorphic builtin.
   static var _hasVectorRepresentation: Bool { get }
-  
-  var _innerStorage: _InnerStorage { get set }
   
   /// The number of scalars, or elements, in the vector.
   var scalarCount: Int { get }
@@ -102,8 +98,6 @@ public protocol SIMDStorage {
   /// Creates a vector with zero in all lanes.
   init()
   
-  init(_innerStorage: _InnerStorage)
-  
   /// Accesses the element at the specified index.
   ///
   /// - Parameter index: The index of the element to access. `index` must be in
@@ -115,7 +109,7 @@ extension SIMDStorage {
   public static var _hasVectorRepresentation: Bool {
     // @_alwaysEmitIntoClient
     @_transparent
-    get { return false }
+    get { return Self.self is _SIMDVectorStorageBase.Type }
   }
 
   public static var _hasVectorOperations: Bool {
@@ -132,20 +126,6 @@ extension SIMDStorage {
     // static var? Yes, probably, but by doing it this way we make the static
     // var backdeployable.
     return Self().scalarCount
-  }
-  
-  public var _innerStorage: _InnerStorage {
-    get {
-      fatalError("In default SIMDStorage impl for \(Self.self)")
-    }
-    set {
-      fatalError("In default SIMDStorage impl for \(Self.self)")
-    }
-  }
-  
-  public init(_innerStorage: _InnerStorage) {
-    self.init()
-    self._innerStorage = _innerStorage
   }
 }
 
@@ -203,7 +183,6 @@ extension SIMDStorage {
 
 extension _SIMDNever: SIMDStorage {
   public typealias Scalar = _SIMDNever
-  public typealias _InnerStorage = _SIMDGenericNever<Self.Scalar>
 
   public static var scalarCount: Int {
     @_transparent
@@ -228,8 +207,6 @@ extension _SIMDNever: SIMDStorage {
 }
 
 extension _SIMDGenericNever: SIMDStorage {
-  public typealias _InnerStorage = _SIMDGenericNever<Scalar>
-
   public static var scalarCount: Int {
     @_transparent
     get { switch Self() {} }
@@ -252,7 +229,11 @@ extension _SIMDGenericNever: SIMDStorage {
   }
 }
 
-public protocol _SIMDVectorStorage: SIMDStorage {
+public protocol _SIMDVectorStorageBase {
+
+}
+
+public protocol _SIMDVectorStorage: _SIMDVectorStorageBase, SIMDStorage {
   // Must be a builtin type by IRGen time.
   associatedtype _Vector
 
@@ -261,7 +242,14 @@ public protocol _SIMDVectorStorage: SIMDStorage {
   init(_vector: _Vector)
 }
 
-extension _SIMDVectorStorage where Scalar: BinaryInteger {
+extension _SIMDVectorStorage {
+  var _hasVectorRepresentation: Bool {
+    @_transparent
+    get { return true }
+  }
+}
+
+extension _SIMDVectorStorage where Scalar: FixedWidthInteger {
   @_transparent
   public static func _and(_ lhs: Self, _ rhs: Self) -> Self {
     return Self(_vector: Builtin.generic_and(lhs._vector, rhs._vector))
@@ -402,14 +390,6 @@ public protocol SIMD: SIMDStorage,
 }
 
 extension SIMD {
-  public static var _hasVectorRepresentation: Bool {
-    @_transparent
-    @_alwaysEmitIntoClient
-    get {
-      return Self._InnerStorage._hasVectorRepresentation
-    }
-  }
-
   /// The valid indices for subscripting the vector.
   @_transparent
   public var indices: Range<Int> {
@@ -1047,10 +1027,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self.init(_innerStorage: Self._InnerStorage._and(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._and(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] & rhs[i] }
@@ -1060,10 +1037,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func ^(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self.init(_innerStorage: Self._InnerStorage._xor(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._xor(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] ^ rhs[i] }
@@ -1073,10 +1047,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func |(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self.init(_innerStorage: Self._InnerStorage._or(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._or(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] | rhs[i] }
@@ -1086,10 +1057,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &<<(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self.init(_innerStorage: Self._InnerStorage._shl(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._shl(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] &<< rhs[i] }
@@ -1099,10 +1067,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &>>(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self.init(_innerStorage: Self._InnerStorage._shr(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._shr(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] &>> rhs[i] }
@@ -1112,10 +1077,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &+(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._add(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._add(lhs, rhs)
     }
     // let lhs2 = lhs
     // let rhs2 = rhs
@@ -1135,10 +1097,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &-(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._sub(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._sub(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] &- rhs[i] }
@@ -1148,10 +1107,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func &*(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._mul(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._mul(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] &* rhs[i] }
@@ -1161,10 +1117,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func /(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._div(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._div(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] / rhs[i] }
@@ -1174,10 +1127,7 @@ extension SIMD where Scalar: FixedWidthInteger {
   @_transparent
   public static func %(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._rem(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._rem(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] % rhs[i] }
@@ -1244,10 +1194,7 @@ extension SIMD where Scalar: FloatingPoint {
   @_transparent
   public static func +(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._add(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._add(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] + rhs[i] }
@@ -1257,10 +1204,7 @@ extension SIMD where Scalar: FloatingPoint {
   @_transparent
   public static func -(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._sub(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._sub(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] - rhs[i] }
@@ -1270,10 +1214,7 @@ extension SIMD where Scalar: FloatingPoint {
   @_transparent
   public static func *(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._mul(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._mul(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] * rhs[i] }
@@ -1283,10 +1224,7 @@ extension SIMD where Scalar: FloatingPoint {
   @_transparent
   public static func /(lhs: Self, rhs: Self) -> Self {
     if _fastPath(Self._hasVectorOperations) {
-      return Self(_innerStorage: Self._InnerStorage._div(
-        lhs._innerStorage,
-        rhs._innerStorage
-      ))
+      return Self._div(lhs, rhs)
     }
     var result = Self()
     for i in result.indices { result[i] = lhs[i] / rhs[i] }
