@@ -1,0 +1,104 @@
+//===--- SIMDFloat.swift -------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2019 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+% # Ignore the following warning. This _is_ the correct file to edit.
+////////////////////////////////////////////////////////////////////////////////
+// WARNING: This file is manually generated from .gyb template and should not
+// be directly modified. Instead, make changes to CharacterProperties.swift.gyb
+// and run scripts/generate_harness/generate_harness.py to regenerate this file.
+////////////////////////////////////////////////////////////////////////////////
+
+import TestsUtils
+
+let t: [BenchmarkCategory] = [.validation, .api, .simd]
+
+public let SIMDFloat = [
+%for bits in [32, 64]:
+  BenchmarkInfo(name: "SIMD4Float${bits}.add",     runFunction: run_SIMD4Float${bits}Add,     tags: t),
+  BenchmarkInfo(name: "SIMD4Float${bits}.sub",     runFunction: run_SIMD4Float${bits}Sub,     tags: t),
+  BenchmarkInfo(name: "SIMD4Float${bits}.mul",     runFunction: run_SIMD4Float${bits}Mul,     tags: t),
+  BenchmarkInfo(name: "SIMD4Float${bits}.div",     runFunction: run_SIMD4Float${bits}Div,     tags: t),
+  BenchmarkInfo(name: "SIMD4Float${bits}.rem",     runFunction: run_SIMD4Float${bits}Rem,     tags: t),
+  BenchmarkInfo(name: "SIMD4Float${bits}.bulkSum", runFunction: run_SIMD4Float${bits}BulkSum, tags: t,
+                setUpFunction: { blackHole(bulkSumFloat${bits}s) }),
+%end
+]
+
+%for bits in [32, 64]:
+
+@inline(never)
+public func run_SIMD4Float${bits}Add(N: Int) {
+  var a = identity(SIMD4<Float${bits}>(1, 2, 3, 4))
+  let b = identity(SIMD4<Float${bits}>(5, 6, 7, 8))
+  for _ in 0..<N {
+    a = a + b
+  }
+  blackHole(a)
+}
+
+@inline(never)
+public func run_SIMD4Float${bits}Sub(N: Int) {
+  var a = identity(SIMD4<Float${bits}>(1, 2, 3, 4))
+  let b = identity(SIMD4<Float${bits}>(5, 6, 7, 8))
+  for _ in 0..<N {
+    a = a - b
+  }
+  blackHole(a)
+}
+
+@inline(never)
+public func run_SIMD4Float${bits}Mul(N: Int) {
+  var a = identity(SIMD4<Float${bits}>(1, 2, 3, 4))
+  let b = identity(SIMD4<Float${bits}>(5, 6, 7, 8))
+  for _ in 0..<N {
+    a = a * b
+  }
+  blackHole(a)
+}
+
+@inline(never)
+public func run_SIMD4Float${bits}Div(N: Int) {
+  var a = identity(SIMD4<Float${bits}>(1, 2, 3, 4))
+  let b = identity(SIMD4<Float${bits}>(5, 6, 7, 8))
+  for _ in 0..<N {
+    a = a / b
+  }
+  blackHole(a)
+}
+
+@inline(never)
+public func run_SIMD4Float${bits}Rem(N: Int) {
+  var a = identity(SIMD4<Float${bits}>(1, 2, 3, 4))
+  let b = identity(SIMD4<Float${bits}>(5, 6, 7, 8))
+  for _ in 0..<N {
+    a = a % b
+  }
+  blackHole(a)
+}
+
+// The wrapped sum of these integers is expected to be 1000
+let bulkSumFloat${bits}s = Array(repeating: SIMD4<Float${bits}>(1, 2, 3, 4), count: 100)
+
+@inline(never)
+public func run_SIMD4Float${bits}BulkSum(N: Int) {
+  for _ in 0..<N {
+    let ints = identity(bulkSumFloat${bits}s)
+    let sum = ints.reduce(SIMD4<Float${bits}>(), &+).sum()
+    CheckResults(sum == 1000)
+  }
+}
+
+%end
+
+// ${'Local Variables'}:
+// eval: (read-only-mode 1)
+// End:
