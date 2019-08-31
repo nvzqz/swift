@@ -25,46 +25,6 @@ infix operator .^=: AssignmentPrecedence
 infix operator .|=: AssignmentPrecedence
 prefix operator .!
 
-// A `Never`-like type for default implementations and associated types.
-@frozen
-public enum _SIMDNever: Hashable {}
-
-extension _SIMDNever: Codable {
-  public func encode(to encoder: Encoder) throws {
-    switch self {}
-  }
-
-  public init(from decoder: Decoder) throws {
-    fatalError("\(Self.self) cannot be instantiated")
-  }
-}
-
-// A `Never`-like type for default implementations that provides a `SIMDScalar`
-// for use in `where` requirements.
-//
-// This is necessary for the following code to properly compile:
-//
-//     extension _SIMDGenericNever: SIMDStorage {
-//       public typealias _InnerStorage = _SIMDGenericNever<Scalar>
-//       ...
-//     }
-//
-// Given that we want `_InnerStorage.Scalar` to equal specific `Scalar` values
-// to appease the type checker. If one does not need this functionality, just
-// pass `_SIMDNever` as the generic parameter since it is a `SIMDScalar`.
-@frozen
-public enum _SIMDGenericNever<Scalar: Codable & Hashable>: Hashable {}
-
-extension _SIMDGenericNever: Codable {
-  public func encode(to encoder: Encoder) throws {
-    switch self {}
-  }
-
-  public init(from decoder: Decoder) throws {
-    fatalError("\(Self.self) cannot be instantiated")
-  }
-}
-
 /// A type that can function as storage for a SIMD vector type.
 ///
 /// The `SIMDStorage` protocol defines a storage layout and provides
@@ -77,27 +37,31 @@ public protocol SIMDStorage {
   
   associatedtype _InnerStorage: SIMDStorage = _SIMDGenericNever<Self.Scalar> where _InnerStorage.Scalar == Self.Scalar
   
-  // Indicates whether `InnerStorage` is represented by a vector that can be
-  // passed to LLVM via a polymorphic builtin.
-  static var _hasVectorRepresentation: Bool { get }
+  /// Indicates whether `InnerStorage` is represented by a vector that can be
+  /// passed to LLVM via a polymorphic builtin.
+  ///
+  /// This is required to be weakly linked in order to backwards deploy without
+  /// availability checks. This is expected to be inlined, and so it is guarded
+  /// behind `_isConcrete` inside of `hasVectorOperations`.
+  static var _hasVectorRepresentation: Bool { @_weakLinked get }
   
   var _innerStorage: _InnerStorage { get set }
   
   /// The number of scalars, or elements, in the vector.
   var scalarCount: Int { get }
   
-  static func _add(_ lhs: Self, _ rhs: Self) -> Self
-  static func _and(_ lhs: Self, _ rhs: Self) -> Self
-  static func _or(_ lhs: Self, _ rhs: Self) -> Self
-  static func _mul(_ lhs: Self, _ rhs: Self) -> Self
-  static func _div(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _add(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _and(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _or(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _mul(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _div(_ lhs: Self, _ rhs: Self) -> Self
   // TODO: Consider adding interface for `Builtin.generic_divExact`
-  // static func _divExact(_ lhs: Self, _ rhs: Self) -> Self
-  static func _rem(_ lhs: Self, _ rhs: Self) -> Self
-  static func _shl(_ lhs: Self, _ rhs: Self) -> Self
-  static func _shr(_ lhs: Self, _ rhs: Self) -> Self
-  static func _sub(_ lhs: Self, _ rhs: Self) -> Self
-  static func _xor(_ lhs: Self, _ rhs: Self) -> Self
+  // static func @_weakLinked _divExact(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _rem(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _shl(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _shr(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _sub(_ lhs: Self, _ rhs: Self) -> Self
+  @_weakLinked static func _xor(_ lhs: Self, _ rhs: Self) -> Self
   
   /// Creates a vector with zero in all lanes.
   init()
