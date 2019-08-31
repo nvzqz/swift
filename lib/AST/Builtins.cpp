@@ -1172,6 +1172,15 @@ static ValueDecl *getPolymorphicBinaryOperation(ASTContext &ctx,
   return builder.build(id);
 }
 
+static ValueDecl *getPolymorphicBinaryPredicate(ASTContext &ctx,
+                                                Identifier id) {
+  BuiltinGenericSignatureBuilder builder(ctx);
+  builder.addParameter(makeGenericParam());
+  builder.addParameter(makeGenericParam());
+  builder.setResult(makeGenericParam());
+  return builder.build(id);
+}
+
 /// An array of the overloaded builtin kinds.
 static const OverloadedBuiltinKind OverloadedBuiltinKinds[] = {
   OverloadedBuiltinKind::None,
@@ -1188,8 +1197,10 @@ static const OverloadedBuiltinKind OverloadedBuiltinKinds[] = {
   OverloadedBuiltinKind::Special,
 #define BUILTIN_BINARY_OPERATION_WITH_OVERFLOW(id, name, _, attrs, overload) \
    OverloadedBuiltinKind::overload,
-#define BUILTIN_BINARY_PREDICATE(id, name, attrs, overload) \
-   OverloadedBuiltinKind::overload,
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(id, name, attrs, overload)  \
+  OverloadedBuiltinKind::overload,
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(id, name, attrs)                  \
+  OverloadedBuiltinKind::Special,
 #define BUILTIN_UNARY_OPERATION(id, name, attrs, overload) \
    OverloadedBuiltinKind::overload,
 #define BUILTIN_SIL_OPERATION(id, name, overload) \
@@ -1793,10 +1804,21 @@ ValueDecl *swift::getBuiltinValueDecl(ASTContext &Context, Identifier Id) {
       return getBinaryOperationWithOverflow(Id, Types[0]);
 
 #define BUILTIN(id, name, Attrs)
-#define BUILTIN_BINARY_PREDICATE(id, name, attrs, overload)  case BuiltinValueKind::id:
+#define BUILTIN_BINARY_PREDICATE(id, name, attrs)
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(id, name, attrs, overload)  \
+  case BuiltinValueKind::id:
 #include "swift/AST/Builtins.def"
     if (Types.size() != 1) return nullptr;
     return getBinaryPredicate(Id, Types[0]);
+
+#define BUILTIN(id, name, attrs)
+#define BUILTIN_BINARY_PREDICATE(id, name, attrs)
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(id, name, attrs)                  \
+  case BuiltinValueKind::id:
+#include "swift/AST/Builtins.def"
+    if (!Types.empty())
+      return nullptr;
+    return getPolymorphicBinaryPredicate(Context, Id);
 
 #define BUILTIN(id, name, Attrs)
 #define BUILTIN_UNARY_OPERATION(id, name, attrs, overload)   case BuiltinValueKind::id:
@@ -2040,6 +2062,9 @@ bool swift::isPolymorphicBuiltin(BuiltinValueKind id) {
   case BuiltinValueKind::Id:                                                   \
     return false;
 #define BUILTIN_BINARY_OPERATION_POLYMORPHIC(Id, Name, Attrs)                  \
+  case BuiltinValueKind::Id:                                                   \
+    return true;
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(Id, Name, Attrs)                  \
   case BuiltinValueKind::Id:                                                   \
     return true;
 #include "swift/AST/Builtins.def"

@@ -21,6 +21,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifdef BUILTIN_STRINGIFY
+#error "Do not define BUILTIN_STRINGIFY before including this .def file"
+#endif
+
+/// Stringifies `NAME` as an issue workaround with other macro invocations.
+#define BUILTIN_STRINGIFY(NAME) #NAME
+
 /// Cast operations have type T1 -> T2.
 #ifndef BUILTIN_CAST_OPERATION
 #define BUILTIN_CAST_OPERATION(Id, Name, Attrs) BUILTIN(Id, Name, Attrs)
@@ -93,12 +100,6 @@ BUILTIN_CAST_OR_BITCAST_OPERATION(SExtOrBitCast,  "sextOrBitCast",  "n")
 #define BUILTIN_BINARY_OPERATION(Id, Name, Attrs) BUILTIN(Id, Name, Attrs)
 #endif
 
-#ifdef BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR
-#error "Do not define BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR before including this .def file"
-#endif
-
-#define BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR(NAME) #NAME
-
 #ifndef BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC
 #define BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC(Id, Name, Attrs, Overload) \
   BUILTIN_BINARY_OPERATION(Id, Name, Attrs)
@@ -112,8 +113,8 @@ BUILTIN_CAST_OR_BITCAST_OPERATION(SExtOrBitCast,  "sextOrBitCast",  "n")
 // TODO: This needs a better name. We stringify generic_ in *_{OVERLOADED_STATIC,POLYMORPHIC}
 #ifndef BUILTIN_BINARY_OPERATION_ALL
 #define BUILTIN_BINARY_OPERATION_ALL(Id, Name, Attrs, Overload) \
-  BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC(Id, BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR(Name), Attrs, Overload) \
-  BUILTIN_BINARY_OPERATION_POLYMORPHIC(Generic##Id, BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR(generic_##Name), Attrs)
+  BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC(Id,    BUILTIN_STRINGIFY(Name),           Attrs, Overload) \
+  BUILTIN_BINARY_OPERATION_POLYMORPHIC(Generic##Id, BUILTIN_STRINGIFY(generic_##Name), Attrs)
 #endif
 
 // NOTE: Here we need our name field to be bare. We stringify them as
@@ -141,7 +142,6 @@ BUILTIN_BINARY_OPERATION_ALL(Xor,     xor,      "n", IntegerOrVector)
 #undef BUILTIN_BINARY_OPERATION_ALL
 #undef BUILTIN_BINARY_OPERATION_POLYMORPHIC
 #undef BUILTIN_BINARY_OPERATION_OVERLOADED_STATIC
-#undef BUILTIN_BINARY_OPERATION_GENERIC_HELPER_STR
 #undef BUILTIN_BINARY_OPERATION
 
 /// These builtins are analogous the similarly named llvm intrinsics. The
@@ -189,33 +189,52 @@ BUILTIN_UNARY_OPERATION(AssumeTrue, "assume", "", Integer)
 // Binary predicates have type (T,T) -> i1 or (T, T) -> Vector<i1> for scalars
 // and vectors, respectively.
 #ifndef BUILTIN_BINARY_PREDICATE
-#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs, Overload) \
-          BUILTIN(Id, Name, Attrs)
+#define BUILTIN_BINARY_PREDICATE(Id, Name, Attrs) \
+  BUILTIN(Id, Name, Attrs)
 #endif
-BUILTIN_BINARY_PREDICATE(ICMP_EQ,  "cmp_eq",   "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_NE,  "cmp_ne",   "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_SLE, "cmp_sle",  "n", IntegerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_SLT, "cmp_slt",  "n", IntegerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_SGE, "cmp_sge",  "n", IntegerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_SGT, "cmp_sgt",  "n", IntegerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_ULE, "cmp_ule",  "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_ULT, "cmp_ult",  "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_UGE, "cmp_uge",  "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(ICMP_UGT, "cmp_ugt",  "n", IntegerOrRawPointerOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_OEQ, "fcmp_oeq", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_OGT, "fcmp_ogt", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_OGE, "fcmp_oge", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_OLT, "fcmp_olt", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_OLE, "fcmp_ole", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_ONE, "fcmp_one", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_ORD, "fcmp_ord", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_UEQ, "fcmp_ueq", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_UGT, "fcmp_ugt", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_UGE, "fcmp_uge", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_ULT, "fcmp_ult", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_ULE, "fcmp_ule", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_UNE, "fcmp_une", "n", FloatOrVector)
-BUILTIN_BINARY_PREDICATE(FCMP_UNO, "fcmp_uno", "n", FloatOrVector)
+
+#ifndef BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(Id, Name, Attrs, Overload) \
+  BUILTIN_BINARY_PREDICATE(Id, Name, Attrs)
+#endif
+
+#ifndef BUILTIN_BINARY_PREDICATE_POLYMORPHIC
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(Id, Name, Attrs) \
+  BUILTIN_BINARY_PREDICATE(Id, Name, Attrs)
+#endif
+
+#ifndef BUILTIN_BINARY_PREDICATE_ALL
+#define BUILTIN_BINARY_PREDICATE_ALL(Id, Name, Attrs, Overload) \
+  BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(Id,    BUILTIN_STRINGIFY(Name),           Attrs, Overload) \
+  BUILTIN_BINARY_PREDICATE_POLYMORPHIC(Generic##Id, BUILTIN_STRINGIFY(generic_##Name), Attrs)
+#endif
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_EQ,  cmp_eq,   "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_NE,  cmp_ne,   "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_SLE, cmp_sle,  "n", IntegerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_SLT, cmp_slt,  "n", IntegerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_SGE, cmp_sge,  "n", IntegerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_SGT, cmp_sgt,  "n", IntegerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_ULE, cmp_ule,  "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_ULT, cmp_ult,  "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_UGE, cmp_uge,  "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(ICMP_UGT, cmp_ugt,  "n", IntegerOrRawPointerOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_OEQ, fcmp_oeq, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_OGT, fcmp_ogt, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_OGE, fcmp_oge, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_OLT, fcmp_olt, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_OLE, fcmp_ole, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_ONE, fcmp_one, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_ORD, fcmp_ord, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_UEQ, fcmp_ueq, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_UGT, fcmp_ugt, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_UGE, fcmp_uge, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_ULT, fcmp_ult, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_ULE, fcmp_ule, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_UNE, fcmp_une, "n", FloatOrVector)
+BUILTIN_BINARY_PREDICATE_ALL(FCMP_UNO, fcmp_uno, "n", FloatOrVector)
+#undef BUILTIN_BINARY_PREDICATE_ALL
+#undef BUILTIN_BINARY_PREDICATE_POLYMORPHIC
+#undef BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC
 #undef BUILTIN_BINARY_PREDICATE
 
 // BUILTIN_SIL_OPERATION - Operations that can be lowered to SIL instructions.
@@ -670,5 +689,5 @@ BUILTIN_TYPE_CHECKER_OPERATION(TriggerFallbackDiagnostic, trigger_fallback_diagn
 BUILTIN_TYPE_TRAIT_OPERATION(CanBeObjCClass, canBeClass)
 
 #undef BUILTIN_TYPE_TRAIT_OPERATION
-
+#undef BUILTIN_STRINGIFY
 #undef BUILTIN

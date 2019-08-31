@@ -153,8 +153,14 @@ ConstantTracker::IntConst ConstantTracker::getBuiltinConst(BuiltinInst *BI, int 
 
       // Fold comparison predicates.
 #define BUILTIN(id, name, Attrs)
-#define BUILTIN_BINARY_PREDICATE(id, name, attrs, overload) \
-case BuiltinValueKind::id:
+#define BUILTIN_BINARY_PREDICATE_POLYMORPHIC(id, name, attrs) \
+  case BuiltinValueKind::id:
+#include "swift/AST/Builtins.def"
+    // Constant folding is not implemented for polymorphic binary predicates
+    return IntConst();
+#define BUILTIN(id, name, Attrs)
+#define BUILTIN_BINARY_PREDICATE_OVERLOADED_STATIC(id, name, attrs, overload) \
+  case BuiltinValueKind::id:
 #include "swift/AST/Builtins.def"
     {
       IntConst lhs = getIntConst(Args[0], depth);

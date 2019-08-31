@@ -342,6 +342,7 @@ ERROR(division_overflow,none,
       "division '%0 %1 %2' results in an overflow",
       (StringRef, StringRef, StringRef))
 ERROR(division_by_zero,none, "division by zero", ())
+ERROR(incompatible_polymorphic_builtin_type,none, "the type cannot be used in the polymorphic builtin", ())
 ERROR(wrong_non_negative_assumption,none,
       "assumed non-negative value '%0' is negative", (StringRef))
 ERROR(shifting_all_significant_bits,none,
